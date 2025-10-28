@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Disc Golf Game</title>
+<style>
+body { margin:0; overflow:hidden; font-family:sans-serif; }
+#shotMenu { 
+  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+  background:rgba(0,0,0,0.7); color:white; padding:20px; z-index:10;
+  display:flex; flex-direction:column; align-items:center;
+}
+#shotMenu label, #shotMenu select, #shotMenu input, #shotMenu span, #shotMenu button {
+  margin:5px;
+}
+#info {position:absolute; top:10px; left:10px; color:white; font-size:18px; z-index:10;}
+</style>
+</head>
+<body>
+<div id="shotMenu">
+<h2>Choose Your Shot</h2>
+<label>Disc:</label>
+<select id="discSelect">
+  <option value="Driver">Driver</option>
+  <option value="Midrange">Midrange</option>
+  <option value="Putter">Putter</option>
+</select>
+
+<label>Throw Type:</label>
+<select id="throwSelect">
+  <option value="backhand">Backhand</option>
+  <option value="forehand">Forehand</option>
+  <option value="hyzer">Hyzer</option>
+</select>
+
+<label>Power:</label>
+<input type="range" id="powerRange" min="0" max="1" step="0.01" value="0.8">
+<span id="powerLabel">80%</span>
+
+<button onclick="startThrow()">Throw!</button>
+</div>
+
+<div id="info"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.152.0/build/three.min.js"></script>
+<script>
+// --- Scene Setup ---
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x58b368);
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 5000);
+camera.position.set(0,5,20);
+camera.lookAt(0,0,0);
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+// Light
+const light = new THREE.DirectionalLight(0xffffff, 1);
+light.position.set(50,50,50);
+scene.add(light);
+
+// Ground
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(500,500,10,10),
+  new THREE.MeshPhongMaterial({color:0x7ac37d})
+);
+ground.rotation.x = -Math.PI/2;
+scene.add(ground);
+
+// Player disc
+const discGeom = new THREE.CylinderGeometry(0.25,0.25,0.05,32);
+const discMat = new THREE.MeshPhongMaterial({color:0xff0000});
+const disc = new THREE.Mesh(discGeom,discMat);
+disc.rotation.x = Math.PI/2;
+disc.position.set(0,0.05,0);
+scene.add(disc);
+
+let velocity = new THREE.Vector3(0,0,0);
+let throwing = false;
+
+// --- UI ---
+const shotMenu = document.getElementById('shotMenu');
+const discSelect = document.getElementById('discSelect');
+const throwSelect = document.getElementById('throwSelect');
+const powerRange = document.getElementById('powerRange');
+const powerLabel = document.getElementById('powerLabel');
+
+powerRange.addEventListener('input', ()=>{ powerLabel.innerText = Math.round(powerRange.value*100)+'%'; });
+
+function startThrow(){
+  const discType = discSelect.value;
+  const power = parseFloat(powerRange.value);
+
+  let maxDist = 100;
+  if(discType=="Driver") maxDist=200;
+  else if(discType=="Midrange") maxDist=130;
+  else if(discType=="Putter") maxDist=70;
+
+  const distance = maxDist * power;
+  velocity.set(0,0, -distance*0.05); // forward along -Z
+  throwing = true;
+  shotMenu.style.display = 'none';
+}
+
+// --- Animate ---
+function animate(){
+  requestAnimationFrame(animate);
+  if(throwing){
+    disc.position.add(velocity);
+    velocity.multiplyScalar(0.95); // friction
+
+    // Stop disc
+    if(velocity.length() < 0.01){
+      throwing=false;
+      disc.position.set(disc.position.x,0.05,disc.position.z);
+      shotMenu.style.display='flex';
+    }
+
+    // Camera follows disc
+    camera.position.x = disc.position.x;
+    camera.position.z = disc.position.z + 10;
+    camera.lookAt(disc.position.x, disc.position.y, disc.position.z);
+  }
+
+  renderer.render(scene,camera);
+}
+animate();
+</script>
+</body>
+</html>
